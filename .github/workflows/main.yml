@@ -24,8 +24,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Paso 3: Construir la imagen de Docker
+      # Paso 3: Construir la imagen de Docker (usando working-directory)
       - name: Build Docker Image
+        working-directory: ./EjemploMicroservicio1-main
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/my-app:latest .
 
@@ -34,7 +35,7 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/my-app:latest
           
-      # Paso 5: Configurar credenciales de AWS para SSH (INDENTACIÓN CORREGIDA)
+      # Paso 5: Configurar credenciales de AWS
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -43,23 +44,19 @@ jobs:
           aws-region: us-east-1
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           
-      # Paso 6: Agregar la llave SSH (INDENTACIÓN CORREGIDA)
+      # Paso 6: Agregar la llave SSH
       - name: Add SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      # Paso 7: Conectarse a EC2 y desplegar el contenedor (INDENTACIÓN CORREGIDA)
+      # Paso 7: Desplegar en EC2
       - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # Autenticar en DockerHub desde EC2
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            # Descargar la última versión de la imagen
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/my-app:latest
-            # Parar y eliminar cualquier contenedor previo
             docker stop my-app || true && docker rm my-app || true
-            # Iniciar el contenedor
             docker run -d --name my-app -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/my-app:latest
           EOF
